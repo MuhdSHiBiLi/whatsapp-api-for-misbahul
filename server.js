@@ -652,367 +652,363 @@ app.get('/', (req, res) => {
 });
 
 // Bulk messaging API endpoint
-app.post('/api/send-bulk', async (req, res) => {
-    // Check if WhatsApp is connected
-    if (!isLoggedIn || !client) {
-      return res.status(403).json({
-        success: false,
-        message: 'WhatsApp not connected. Please scan QR code first.'
-      });
-    }
+// app.post('/api/send-bulk', async (req, res) => {
+//     // Check if WhatsApp is connected
+//     if (!isLoggedIn || !client) {
+//       return res.status(403).json({
+//         success: false,
+//         message: 'WhatsApp not connected. Please scan QR code first.'
+//       });
+//     }
   
-    try {
-      // Get the messages array from request body
-      const { messages } = req.body;
+//     try {
+//       // Get the messages array from request body
+//       const { messages } = req.body;
       
-      if (!messages || !Array.isArray(messages) || messages.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid request. Please provide an array of messages.'
-        });
-      }
+//       if (!messages || !Array.isArray(messages) || messages.length === 0) {
+//         return res.status(400).json({
+//           success: false,
+//           message: 'Invalid request. Please provide an array of messages.'
+//         });
+//       }
       
-      // Start processing messages
-      log(`📤 Starting bulk message sending - ${messages.length} messages queued`);
+//       // Start processing messages
+//       log(`📤 Starting bulk message sending - ${messages.length} messages queued`);
       
-      // Initial response to prevent timeout
-      res.status(202).json({
-        success: true,
-        message: `Processing ${messages.length} messages in the background`,
-        queued: messages.length
-      });
+//       // Initial response to prevent timeout
+//       res.status(202).json({
+//         success: true,
+//         message: `Processing ${messages.length} messages in the background`,
+//         queued: messages.length
+//       });
       
-      // Process messages in the background with a small delay between each
-      let successCount = 0;
-      let failCount = 0;
+//       // Process messages in the background with a small delay between each
+//       let successCount = 0;
+//       let failCount = 0;
       
-      // Function to send a single text message
-      const sendTextMessage = async (recipient, message) => {
-        try {
-          // Send simple text message
-          await client.sendMessage(recipient, message);
+//       // Function to send a single text message
+//       const sendTextMessage = async (recipient, message) => {
+//         try {
+//           // Send simple text message
+//           await client.sendMessage(recipient, message);
           
-          // Track successful message
-          successCount++;
-          log(`✅ Sent message to ${recipient}`);
+//           // Track successful message
+//           successCount++;
+//           log(`✅ Sent message to ${recipient}`);
           
-          return { recipient, status: 'success' };
-        } catch (error) {
-          failCount++;
-          log(`❌ Failed to send message to ${recipient}: ${error.message}`);
-          return { recipient, status: 'failed', error: error.message };
-        }
-      };
+//           return { recipient, status: 'success' };
+//         } catch (error) {
+//           failCount++;
+//           log(`❌ Failed to send message to ${recipient}: ${error.message}`);
+//           return { recipient, status: 'failed', error: error.message };
+//         }
+//       };
   
-      // Process each message with a small delay between sends
-      for (let i = 0; i < messages.length; i++) {
-        const { number, message } = messages[i];
+//       // Process each message with a small delay between sends
+//       for (let i = 0; i < messages.length; i++) {
+//         const { number, message } = messages[i];
         
-        // Validate the number format
-        const formattedNumber = number.startsWith('+') ? 
-          number.substring(1) + '@c.us' : 
-          number + '@c.us';
+//         // Validate the number format
+//         const formattedNumber = number.startsWith('+') ? 
+//           number.substring(1) + '@c.us' : 
+//           number + '@c.us';
         
-        try {
-          // Send the text message
-          await sendTextMessage(formattedNumber, message);
+//         try {
+//           // Send the text message
+//           await sendTextMessage(formattedNumber, message);
           
-          // Small delay between messages to prevent rate limiting (500-800ms)
-          if (i < messages.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * 300) + 500));
-          }
+//           // Small delay between messages to prevent rate limiting (500-800ms)
+//           if (i < messages.length - 1) {
+//             await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * 300) + 500));
+//           }
           
-          // Log progress periodically
-          if (i % 10 === 0 || i === messages.length - 1) {
-            log(`📊 Bulk sending progress: ${i + 1}/${messages.length}`);
-          }
-        } catch (error) {
-          log(`❌ Error in bulk send loop: ${error.message}`);
-          failCount++;
-        }
-      }
+//           // Log progress periodically
+//           if (i % 10 === 0 || i === messages.length - 1) {
+//             log(`📊 Bulk sending progress: ${i + 1}/${messages.length}`);
+//           }
+//         } catch (error) {
+//           log(`❌ Error in bulk send loop: ${error.message}`);
+//           failCount++;
+//         }
+//       }
       
-      // Log final results
-      log(`✅ Bulk message sending completed: ${successCount} successful, ${failCount} failed`);
+//       // Log final results
+//       log(`✅ Bulk message sending completed: ${successCount} successful, ${failCount} failed`);
       
-    } catch (error) {
-      log(`❌ Error in bulk sending API: ${error.message}`);
-      // We've already sent the initial response
-    }
-  });
+//     } catch (error) {
+//       log(`❌ Error in bulk sending API: ${error.message}`);
+//       // We've already sent the initial response
+//     }
+//   });
 
-  //message with QR code
-  // app.post('/api/send-bulk-qr', async (req, res) => {
-  //   // Check if WhatsApp is connected
-  //   if (!isLoggedIn || !client) {
-  //     return res.status(403).json({
-  //       success: false,
-  //       message: 'WhatsApp not connected. Please scan QR code first.'
-  //     });
-  //   }
+  
+//   app.post('/api/send-bulk-qr', async (req, res) => {
+//     // Check if WhatsApp is connected
+//     if (!isLoggedIn || !client) {
+//       return res.status(403).json({
+//         success: false,
+//         message: 'WhatsApp not connected. Please scan QR code first.'
+//       });
+//     }
     
-  //   try {
-  //     // Get the messages array from request body
-  //     const { messages } = req.body;
+//     try {
+//       // Get the messages array from request body
+//       const { messages } = req.body;
       
-  //     if (!messages || !Array.isArray(messages) || messages.length === 0) {
-  //       return res.status(400).json({
-  //         success: false,
-  //         message: 'Invalid request. Please provide an array of messages.'
-  //       });
-  //     }
+//       if (!messages || !Array.isArray(messages) || messages.length === 0) {
+//         return res.status(400).json({
+//           success: false,
+//           message: 'Invalid request. Please provide an array of messages.'
+//         });
+//       }
       
-  //     // Start processing messages
-  //     log(`📤 Starting bulk message sending - ${messages.length} messages queued`);
+//       // Start processing messages
+//       log(`📤 Starting bulk message sending - ${messages.length} messages queued`);
       
-  //     // Initial response to prevent timeout
-  //     res.status(202).json({
-  //       success: true,
-  //       message: `Processing ${messages.length} messages in the background`,
-  //       queued: messages.length
-  //     });
+//       // Initial response to prevent timeout
+//       res.status(202).json({
+//         success: true,
+//         message: `Processing ${messages.length} messages in the background`,
+//         queued: messages.length
+//       });
       
-  //     // Process messages in the background with a small delay between each
-  //     let successCount = 0;
-  //     let failCount = 0;
+//       // Process messages in the background with a small delay between each
+//       let successCount = 0;
+//       let failCount = 0;
       
-  //     // Function to generate QR code from data
-  //     const generateQRCode = async (qrData) => {
-  //       try {
-  //         if (!qrData) return null;
+//       // Function to generate QR code from data
+//       const generateQRCode = async (qrData) => {
+//         try {
+//           if (!qrData) return null;
           
-  //         // Generate QR code as data URL using qrcode library
-  //         const qrCodeDataURL = await QRCode.toDataURL(qrData, {
-  //           errorCorrectionLevel: 'H',
-  //           margin: 1,
-  //           width: 300
-  //         });
+//           // Generate QR code as data URL using qrcode library
+//           // Using await directly with the promise-based API
+//           const qrCodeDataURL = await qrcode.toDataURL(qrData, {
+//             errorCorrectionLevel: 'H',
+//             margin: 1,
+//             width: 300
+//           });
           
-  //         // Convert data URL to buffer
-  //         const base64Data = qrCodeDataURL.replace(/^data:image\/png;base64,/, '');
-  //         const imageBuffer = Buffer.from(base64Data, 'base64');
+//           // Convert data URL to buffer
+//           const base64Data = qrCodeDataURL.replace(/^data:image\/png;base64,/, '');
+//           const imageBuffer = Buffer.from(base64Data, 'base64');
           
-  //         return imageBuffer;
-  //       } catch (error) {
-  //         log(`❌ Error generating QR code: ${error.message}`);
-  //         return null;
-  //       }
-  //     };
+//           return imageBuffer;
+//         } catch (error) {
+//           log(`❌ Error generating QR code: ${error.message}`);
+//           return null;
+//         }
+//       };
       
-  //     // Function to send a message - either text or image with caption
-  //     const sendMessage = async (recipient, message, qrData) => {
-  //       try {
-  //         // Format the number
-  //         const formattedNumber = recipient.startsWith('+') ?
-  //           recipient.substring(1) + '@c.us' :
-  //           recipient + '@c.us';
+//       // Function to send a message - either text or image with caption
+//       const sendMessage = async (recipient, message, qrData) => {
+//         try {
+//           // Format the number
+//           const formattedNumber = recipient.startsWith('+') ?
+//             recipient.substring(1) + '@c.us' :
+//             recipient + '@c.us';
           
-  //         // If QR data is provided, send image with caption
-  //         if (qrData) {
-  //           // Generate QR code image
-  //           const qrImageBuffer = await generateQRCode(qrData);
+//           // If QR data is provided, send image with caption
+//           if (qrData) {
+//             try {
+//               // Generate QR code image
+//               const qrImageBuffer = await generateQRCode(qrData);
+              
+//               if (qrImageBuffer) {
+//                 // Create media from buffer
+//                 const media = new MessageMedia('image/png', qrImageBuffer.toString('base64'), 'qrcode.png');
+                
+//                 // Send the image with message as caption
+//                 await client.sendMessage(formattedNumber, media, { caption: message });
+                
+//                 successCount++;
+//                 log(`✅ Sent QR image message to ${recipient}`);
+//               } else {
+//                 // If QR generation failed, send text message only
+//                 await client.sendMessage(formattedNumber, message);
+//                 log(`⚠️ QR generation failed for ${recipient}, sent text only`);
+//                 successCount++;
+//               }
+//             } catch (qrError) {
+//               // If there's an error with QR generation, fall back to text message
+//               log(`⚠️ QR error for ${recipient}: ${qrError.message}, sending text only`);
+//               await client.sendMessage(formattedNumber, message);
+//               successCount++;
+//             }
+//           } else {
+//             // Send simple text message
+//             await client.sendMessage(formattedNumber, message);
+//             successCount++;
+//             log(`✅ Sent text message to ${recipient}`);
+//           }
+          
+//           return { recipient, status: 'success' };
+//         } catch (error) {
+//           failCount++;
+//           log(`❌ Failed to send message to ${recipient}: ${error.message}`);
+//           return { recipient, status: 'failed', error: error.message };
+//         }
+//       };
+      
+//       // Process each message with a small delay between sends
+//       for (let i = 0; i < messages.length; i++) {
+//         const { number, message, qrData } = messages[i];
+        
+//         try {
+//           // Send the message (with QR if available)
+//           await sendMessage(number, message, qrData);
+          
+//           // Small delay between messages to prevent rate limiting (500-800ms)
+//           if (i < messages.length - 1) {
+//             await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * 300) + 500));
+//           }
+          
+//           // Log progress periodically
+//           if (i % 10 === 0 || i === messages.length - 1) {
+//             log(`📊 Bulk sending progress: ${i + 1}/${messages.length}`);
+//           }
+//         } catch (error) {
+//           log(`❌ Error in bulk send loop: ${error.message}`);
+//           failCount++;
+//         }
+//       }
+      
+//       // Log final results
+//       log(`✅ Bulk message sending completed: ${successCount} successful, ${failCount} failed`);
+      
+//     } catch (error) {
+//       log(`❌ Error in bulk sending API: ${error.message}`);
+//       // We've already sent the initial response
+//     }
+//   });
+
+app.post('/api/send-messages', async (req, res) => {
+  // Check if WhatsApp is connected
+  if (!isLoggedIn || !client) {
+    return res.status(403).json({
+      success: false,
+      message: 'WhatsApp not connected. Please scan QR code first.'
+    });
+  }
+
+  try {
+    // Get the messages array from request body
+    const { messages } = req.body;
+    
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid request. Please provide an array of messages.'
+      });
+    }
+    
+    // Immediately respond to prevent timeout
+    res.status(202).json({
+      success: true,
+      message: `Processing ${messages.length} messages in the background`,
+      queued: messages.length
+    });
+    
+    // Track success and failure
+    let successCount = 0;
+    let failCount = 0;
+    
+    // Process messages one by one
+    for (let i = 0; i < messages.length; i++) {
+      const { number, message, qrData } = messages[i];
+      
+      // Format phone number
+      const formattedNumber = number.startsWith('+') ?
+        number.substring(1) + '@c.us' :
+        number + '@c.us';
+      
+      try {
+        // Check if this message should include a QR code
+        if (qrData) {
+          try {
+            // Generate QR code
+            const qrImageBuffer = await generateQRCode(qrData);
             
-  //           if (qrImageBuffer) {
-  //             // Create media from buffer
-  //             const media = new MessageMedia('image/png', qrImageBuffer.toString('base64'), 'qrcode.png');
+            if (qrImageBuffer) {
+              // Create media from buffer
+              const media = new MessageMedia('image/png', qrImageBuffer.toString('base64'), 'qrcode.png');
               
-  //             // Send the image with message as caption
-  //             await client.sendMessage(formattedNumber, media, { caption: message });
+              // Send the image with message as caption
+              await client.sendMessage(formattedNumber, media, { caption: message });
               
-  //             successCount++;
-  //             log(`✅ Sent QR image message to ${recipient}`);
-  //           } else {
-  //             // If QR generation failed, send text message only
-  //             await client.sendMessage(formattedNumber, message);
-  //             log(`⚠️ QR generation failed for ${recipient}, sent text only`);
-  //             successCount++;
-  //           }
-  //         } else {
-  //           // Send simple text message
-  //           await client.sendMessage(formattedNumber, message);
-  //           successCount++;
-  //           log(`✅ Sent text message to ${recipient}`);
-  //         }
-          
-  //         return { recipient, status: 'success' };
-  //       } catch (error) {
-  //         failCount++;
-  //         log(`❌ Failed to send message to ${recipient}: ${error.message}`);
-  //         return { recipient, status: 'failed', error: error.message };
-  //       }
-  //     };
-      
-  //     // Process each message with a small delay between sends
-  //     for (let i = 0; i < messages.length; i++) {
-  //       const { number, message, qrData } = messages[i];
-        
-  //       try {
-  //         // Send the message (with QR if available)
-  //         await sendMessage(number, message, qrData);
-          
-  //         // Small delay between messages to prevent rate limiting (500-800ms)
-  //         if (i < messages.length - 1) {
-  //           await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * 300) + 500));
-  //         }
-          
-  //         // Log progress periodically
-  //         if (i % 10 === 0 || i === messages.length - 1) {
-  //           log(`📊 Bulk sending progress: ${i + 1}/${messages.length}`);
-  //         }
-  //       } catch (error) {
-  //         log(`❌ Error in bulk send loop: ${error.message}`);
-  //         failCount++;
-  //       }
-  //     }
-      
-  //     // Log final results
-  //     log(`✅ Bulk message sending completed: ${successCount} successful, ${failCount} failed`);
-      
-  //   } catch (error) {
-  //     log(`❌ Error in bulk sending API: ${error.message}`);
-  //     // We've already sent the initial response
-  //   }
-  // });
-
-  app.post('/api/send-bulk-qr', async (req, res) => {
-    // Check if WhatsApp is connected
-    if (!isLoggedIn || !client) {
-      return res.status(403).json({
-        success: false,
-        message: 'WhatsApp not connected. Please scan QR code first.'
-      });
-    }
-    
-    try {
-      // Get the messages array from request body
-      const { messages } = req.body;
-      
-      if (!messages || !Array.isArray(messages) || messages.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid request. Please provide an array of messages.'
-        });
-      }
-      
-      // Start processing messages
-      log(`📤 Starting bulk message sending - ${messages.length} messages queued`);
-      
-      // Initial response to prevent timeout
-      res.status(202).json({
-        success: true,
-        message: `Processing ${messages.length} messages in the background`,
-        queued: messages.length
-      });
-      
-      // Process messages in the background with a small delay between each
-      let successCount = 0;
-      let failCount = 0;
-      
-      // Function to generate QR code from data
-      const generateQRCode = async (qrData) => {
-        try {
-          if (!qrData) return null;
-          
-          // Generate QR code as data URL using qrcode library
-          // Using await directly with the promise-based API
-          const qrCodeDataURL = await qrcode.toDataURL(qrData, {
-            errorCorrectionLevel: 'H',
-            margin: 1,
-            width: 300
-          });
-          
-          // Convert data URL to buffer
-          const base64Data = qrCodeDataURL.replace(/^data:image\/png;base64,/, '');
-          const imageBuffer = Buffer.from(base64Data, 'base64');
-          
-          return imageBuffer;
-        } catch (error) {
-          log(`❌ Error generating QR code: ${error.message}`);
-          return null;
-        }
-      };
-      
-      // Function to send a message - either text or image with caption
-      const sendMessage = async (recipient, message, qrData) => {
-        try {
-          // Format the number
-          const formattedNumber = recipient.startsWith('+') ?
-            recipient.substring(1) + '@c.us' :
-            recipient + '@c.us';
-          
-          // If QR data is provided, send image with caption
-          if (qrData) {
-            try {
-              // Generate QR code image
-              const qrImageBuffer = await generateQRCode(qrData);
-              
-              if (qrImageBuffer) {
-                // Create media from buffer
-                const media = new MessageMedia('image/png', qrImageBuffer.toString('base64'), 'qrcode.png');
-                
-                // Send the image with message as caption
-                await client.sendMessage(formattedNumber, media, { caption: message });
-                
-                successCount++;
-                log(`✅ Sent QR image message to ${recipient}`);
-              } else {
-                // If QR generation failed, send text message only
-                await client.sendMessage(formattedNumber, message);
-                log(`⚠️ QR generation failed for ${recipient}, sent text only`);
-                successCount++;
-              }
-            } catch (qrError) {
-              // If there's an error with QR generation, fall back to text message
-              log(`⚠️ QR error for ${recipient}: ${qrError.message}, sending text only`);
+              successCount++;
+              log(`✅ Sent QR image message to ${number} (${i+1}/${messages.length})`);
+            } else {
+              // QR generation failed, send text only
               await client.sendMessage(formattedNumber, message);
               successCount++;
+              log(`⚠️ QR generation failed for ${number}, sent text only (${i+1}/${messages.length})`);
             }
-          } else {
-            // Send simple text message
+          } catch (qrError) {
+            // If QR generation errors, fall back to text message
+            log(`⚠️ QR error for ${number}: ${qrError.message}, sending text only`);
             await client.sendMessage(formattedNumber, message);
             successCount++;
-            log(`✅ Sent text message to ${recipient}`);
           }
-          
-          return { recipient, status: 'success' };
-        } catch (error) {
-          failCount++;
-          log(`❌ Failed to send message to ${recipient}: ${error.message}`);
-          return { recipient, status: 'failed', error: error.message };
+        } else {
+          // Send simple text message (no QR)
+          await client.sendMessage(formattedNumber, message);
+          successCount++;
+          log(`✅ Sent text message to ${number} (${i+1}/${messages.length})`);
         }
-      };
-      
-      // Process each message with a small delay between sends
-      for (let i = 0; i < messages.length; i++) {
-        const { number, message, qrData } = messages[i];
-        
-        try {
-          // Send the message (with QR if available)
-          await sendMessage(number, message, qrData);
-          
-          // Small delay between messages to prevent rate limiting (500-800ms)
-          if (i < messages.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * 300) + 500));
-          }
-          
-          // Log progress periodically
-          if (i % 10 === 0 || i === messages.length - 1) {
-            log(`📊 Bulk sending progress: ${i + 1}/${messages.length}`);
-          }
-        } catch (error) {
-          log(`❌ Error in bulk send loop: ${error.message}`);
-          failCount++;
-        }
+      } catch (error) {
+        failCount++;
+        log(`❌ Failed to send message to ${number}: ${error.message} (${i+1}/${messages.length})`);
       }
       
-      // Log final results
-      log(`✅ Bulk message sending completed: ${successCount} successful, ${failCount} failed`);
+      // Add delay between messages (600-900ms)
+      if (i < messages.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 600 + Math.floor(Math.random() * 300)));
+      }
       
-    } catch (error) {
-      log(`❌ Error in bulk sending API: ${error.message}`);
-      // We've already sent the initial response
+      // Log progress periodically
+      if (i % 5 === 0 || i === messages.length - 1) {
+        log(`📊 Sending progress: ${i + 1}/${messages.length} (${successCount} success, ${failCount} fail)`);
+      }
     }
-  });
+    
+    // Log final results
+    log(`✅ Message sending completed: ${successCount} successful, ${failCount} failed`);
+    
+  } catch (error) {
+    log(`❌ Error in message sending API: ${error.message}`);
+  }
+});
+
+// Improved QR code generation function with better error handling
+const generateQRCode = async (qrData) => {
+  if (!qrData) return null;
+  
+  try {
+    // Set a timeout for QR generation to prevent hanging
+    const qrPromise = new Promise((resolve, reject) => {
+      qrcode.toBuffer(qrData, {
+        errorCorrectionLevel: 'M',
+        margin: 1,
+        width: 300,
+        color: {
+          dark: '#000000',
+          light: '#ffffff'
+        }
+      })
+      .then(resolve)
+      .catch(reject);
+      
+      // Set 5 second timeout for QR generation
+      setTimeout(() => reject(new Error('QR generation timeout')), 5000);
+    });
+    
+    return await qrPromise;
+  } catch (error) {
+    log(`❌ Error generating QR code: ${error.message}`);
+    return null;
+  }
+};
 // Status endpoint to check server and WhatsApp connection status
 app.get('/status', async (req, res) => {
   let state = connectionState;
