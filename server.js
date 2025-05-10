@@ -1039,6 +1039,33 @@ app.get('/', (req, res) => {
 //   });
 // });
 
+const generateQRCode = async (qrData) => {
+  if (!qrData) return null;
+
+  try {
+    const qrPromise = new Promise((resolve, reject) => {
+      qrcode.toBuffer(qrData, {
+        errorCorrectionLevel: 'M',
+        margin: 1,
+        width: 300,
+        color: {
+          dark: '#000000',
+          light: '#ffffff'
+        }
+      })
+      .then(resolve)
+      .catch(reject);
+
+      setTimeout(() => reject(new Error('QR generation timeout')), 5000);
+    });
+
+    return await qrPromise;
+  } catch (error) {
+    log(`❌ Error generating QR code: ${error.message}`);
+    return null;
+  }
+};
+
 // Endpoint for sending bulk messages with batching
 app.post('/api/send-messages', async (req, res) => {
   // Check if WhatsApp is connected
