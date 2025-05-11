@@ -1079,15 +1079,43 @@ app.get('/', (req, res) => {
 //   });
 // });
 
+// const generateQRCode = async (qrData) => {
+//   if (!qrData) return null;
+
+//   try {
+//     const qrPromise = new Promise((resolve, reject) => {
+//       qrcode.toBuffer(qrData, {
+//         errorCorrectionLevel: 'M',
+//         margin: 1,
+//         width: 300,
+//         color: {
+//           dark: '#000000',
+//           light: '#ffffff'
+//         }
+//       })
+//       .then(resolve)
+//       .catch(reject);
+
+//       setTimeout(() => reject(new Error('QR generation timeout')), 5000);
+//     });
+
+//     return await qrPromise;
+//   } catch (error) {
+//     log(`❌ Error generating QR code: ${error.message}`);
+//     return null;
+//   }
+// };
+
+// Improved version of the QR code generator function
 const generateQRCode = async (qrData) => {
   if (!qrData) return null;
-
   try {
+    // Implement timeout protection for QR generation
     const qrPromise = new Promise((resolve, reject) => {
       qrcode.toBuffer(qrData, {
         errorCorrectionLevel: 'M',
-        margin: 1,
-        width: 300,
+        margin: 2,
+        width: 350,  // Slightly larger for better scannability
         color: {
           dark: '#000000',
           light: '#ffffff'
@@ -1095,10 +1123,11 @@ const generateQRCode = async (qrData) => {
       })
       .then(resolve)
       .catch(reject);
-
-      setTimeout(() => reject(new Error('QR generation timeout')), 5000);
+      
+      // Timeout after 8 seconds (increased from 5)
+      setTimeout(() => reject(new Error('QR generation timeout')), 8000);
     });
-
+    
     return await qrPromise;
   } catch (error) {
     log(`❌ Error generating QR code: ${error.message}`);
@@ -1310,6 +1339,123 @@ app.post('/api/send-bulk', async (req, res) => {
 });
 
 // New endpoint for bulk messages with QR codes
+// app.post('/api/send-bulk-qr', async (req, res) => {
+//   // Check if WhatsApp is connected
+//   if (!isLoggedIn || !client) {
+//     return res.status(403).json({
+//       success: false,
+//       message: 'WhatsApp not connected. Please scan QR code first.'
+//     });
+//   }
+
+//   try {
+//     // Get the messages array from request body
+//     const { messages, total } = req.body;
+    
+//     if (!messages || !Array.isArray(messages) || messages.length === 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Invalid request. Please provide an array of messages.'
+//       });
+//     }
+
+//     // Immediately respond to prevent timeout
+//     res.status(202).json({
+//       success: true,
+//       message: `Processing ${messages.length} messages with QR codes in batches`,
+//       queued: messages.length
+//     });
+
+//     // Implementation of improved batching mechanism for QR messages
+//     const BATCH_SIZE = 15; // Smaller batch size for QR messages
+//     const BATCH_DELAY = 8000; // 8 seconds between batches (longer for QR messages)
+//     const MESSAGE_DELAY = 2000; // 2 seconds between messages (QR generation takes time)
+    
+//     // Track success and failure
+//     let successCount = 0;
+//     let failCount = 0;
+    
+//     // Process messages in batches
+//     for (let batchStart = 0; batchStart < messages.length; batchStart += BATCH_SIZE) {
+//       const batchEnd = Math.min(batchStart + BATCH_SIZE, messages.length);
+//       log(`📦 Processing QR batch ${Math.floor(batchStart/BATCH_SIZE) + 1}: messages ${batchStart+1} to ${batchEnd}`);
+      
+//       // Process current batch
+//       for (let i = batchStart; i < batchEnd; i++) {
+//         const { number, message, qrData } = messages[i];
+        
+//         // Format phone number
+//         const formattedNumber = number.startsWith('+') 
+//           ? number.substring(1) + '@c.us' 
+//           : number + '@c.us';
+        
+//         try {
+//           // Handle message with or without QR
+//           if (qrData) {
+//             try {
+//               // Generate QR code
+//               const qrImageBuffer = await generateQRCode(qrData);
+              
+//               if (qrImageBuffer) {
+//                 // Create media from buffer
+//                 const media = new MessageMedia(
+//                   'image/png', 
+//                   qrImageBuffer.toString('base64'), 
+//                   'qrcode.png'
+//                 );
+                
+//                 // Send the image with message as caption
+//                 await client.sendMessage(formattedNumber, media, { caption: message });
+                
+//                 successCount++;
+//                 log(`✅ Sent QR image message to ${number} (${i+1}/${messages.length})`);
+//               } else {
+//                 // QR generation failed, send text only
+//                 await client.sendMessage(formattedNumber, message);
+//                 successCount++;
+//                 log(`⚠️ QR generation failed for ${number}, sent text only (${i+1}/${messages.length})`);
+//               }
+//             } catch (qrError) {
+//               // If QR generation errors, fall back to text message
+//               log(`⚠️ QR error for ${number}: ${qrError.message}, sending text only`);
+//               await client.sendMessage(formattedNumber, message);
+//               successCount++;
+//             }
+//           } else {
+//             // Send simple text message (no QR)
+//             await client.sendMessage(formattedNumber, message);
+//             successCount++;
+//             log(`✅ Sent text message to ${number} (${i+1}/${messages.length})`);
+//           }
+//         } catch (error) {
+//           failCount++;
+//           log(`❌ Failed to send message to ${number}: ${error.message} (${i+1}/${messages.length})`);
+//         }
+        
+//         // Add delay between messages - longer delay for QR messages
+//         if (i < batchEnd - 1) {
+//           await new Promise(resolve => setTimeout(resolve, MESSAGE_DELAY));
+//         }
+//       }
+      
+//       // Log batch completion
+//       log(`✅ QR Batch ${Math.floor(batchStart/BATCH_SIZE) + 1} completed: ${successCount} success, ${failCount} fail so far`);
+      
+//       // Add delay between batches (only if there are more batches to process)
+//       if (batchEnd < messages.length) {
+//         log(`⏳ Waiting ${BATCH_DELAY/1000} seconds before next batch...`);
+//         await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
+//       }
+//     }
+    
+//     // Log final results
+//     log(`✅ QR message sending completed: ${successCount} successful, ${failCount} failed`);
+    
+//   } catch (error) {
+//     log(`❌ Error in QR bulk messaging API: ${error.message}`);
+//   }
+// });
+// Improved bulk QR message sending endpoint
 app.post('/api/send-bulk-qr', async (req, res) => {
   // Check if WhatsApp is connected
   if (!isLoggedIn || !client) {
@@ -1321,7 +1467,7 @@ app.post('/api/send-bulk-qr', async (req, res) => {
 
   try {
     // Get the messages array from request body
-    const { messages, total } = req.body;
+    const { messages, total, batchNumber, totalBatches } = req.body;
     
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({
@@ -1330,103 +1476,174 @@ app.post('/api/send-bulk-qr', async (req, res) => {
       });
     }
 
+    // Log batch receipt
+    log(`📥 Received QR batch ${batchNumber || '?'}/${totalBatches || '?'} with ${messages.length} messages`);
+
     // Immediately respond to prevent timeout
     res.status(202).json({
       success: true,
-      message: `Processing ${messages.length} messages with QR codes in batches`,
+      message: `Processing ${messages.length} messages with QR codes`,
+      batchNumber: batchNumber || 1,
+      totalBatches: totalBatches || 1,
       queued: messages.length
     });
 
     // Implementation of improved batching mechanism for QR messages
-    const BATCH_SIZE = 15; // Smaller batch size for QR messages
-    const BATCH_DELAY = 8000; // 8 seconds between batches (longer for QR messages)
-    const MESSAGE_DELAY = 2000; // 2 seconds between messages (QR generation takes time)
+    const BATCH_SIZE = 5; // Smaller batch size within the server for better reliability
+    const MESSAGE_DELAY = 3000; // 3 seconds between messages (QR generation takes time)
+    const SUB_BATCH_DELAY = 12000; // 12 seconds between sub-batches
     
     // Track success and failure
     let successCount = 0;
     let failCount = 0;
     
-    // Process messages in batches
-    for (let batchStart = 0; batchStart < messages.length; batchStart += BATCH_SIZE) {
-      const batchEnd = Math.min(batchStart + BATCH_SIZE, messages.length);
-      log(`📦 Processing QR batch ${Math.floor(batchStart/BATCH_SIZE) + 1}: messages ${batchStart+1} to ${batchEnd}`);
+    // Process messages in smaller sub-batches for better reliability
+    for (let subBatchStart = 0; subBatchStart < messages.length; subBatchStart += BATCH_SIZE) {
+      const subBatchEnd = Math.min(subBatchStart + BATCH_SIZE, messages.length);
+      log(`📦 Processing QR sub-batch: messages ${subBatchStart+1} to ${subBatchEnd} of batch ${batchNumber || '?'}`);
       
-      // Process current batch
-      for (let i = batchStart; i < batchEnd; i++) {
-        const { number, message, qrData } = messages[i];
+      // Process current sub-batch
+      for (let i = subBatchStart; i < subBatchEnd; i++) {
+        const { id, number, message, qrData } = messages[i];
         
         // Format phone number
-        const formattedNumber = number.startsWith('+') 
-          ? number.substring(1) + '@c.us' 
-          : number + '@c.us';
-        
+        let formattedNumber;
         try {
-          // Handle message with or without QR
-          if (qrData) {
-            try {
-              // Generate QR code
-              const qrImageBuffer = await generateQRCode(qrData);
-              
-              if (qrImageBuffer) {
-                // Create media from buffer
-                const media = new MessageMedia(
-                  'image/png', 
-                  qrImageBuffer.toString('base64'), 
-                  'qrcode.png'
-                );
+          // Handle various phone number formats
+          if (number.includes('@c.us')) {
+            formattedNumber = number; // Already formatted
+          } else if (number.startsWith('+')) {
+            formattedNumber = number.substring(1) + '@c.us';
+          } else {
+            formattedNumber = number + '@c.us';
+          }
+          
+          // Validate number format
+          if (!formattedNumber.match(/^\d+@c\.us$/)) {
+            throw new Error('Invalid phone number format');
+          }
+        } catch (numError) {
+          failCount++;
+          log(`❌ Invalid number format: ${number}`);
+          continue; // Skip this message and move to next
+        }
+        
+        // We'll make multiple attempts for each message
+        let success = false;
+        let attempts = 0;
+        const MAX_ATTEMPTS = 2;
+        
+        while (!success && attempts < MAX_ATTEMPTS) {
+          attempts++;
+          try {
+            // Handle message with or without QR
+            if (qrData) {
+              try {
+                // Generate QR code with exponential backoff
+                let qrImageBuffer = null;
+                let qrAttempt = 0;
                 
-                // Send the image with message as caption
-                await client.sendMessage(formattedNumber, media, { caption: message });
+                while (!qrImageBuffer && qrAttempt < 2) {
+                  try {
+                    qrImageBuffer = await generateQRCode(qrData);
+                    
+                    if (!qrImageBuffer) {
+                      throw new Error('QR generation returned null');
+                    }
+                  } catch (qrGenError) {
+                    qrAttempt++;
+                    if (qrAttempt < 2) {
+                      // Wait before retrying QR generation
+                      await new Promise(resolve => setTimeout(resolve, 2000));
+                      log(`⚠️ Retrying QR generation for message ${i+1} (attempt ${qrAttempt+1})`);
+                    } else {
+                      throw qrGenError; // Propagate error after max attempts
+                    }
+                  }
+                }
                 
-                successCount++;
-                log(`✅ Sent QR image message to ${number} (${i+1}/${messages.length})`);
-              } else {
-                // QR generation failed, send text only
-                await client.sendMessage(formattedNumber, message);
-                successCount++;
-                log(`⚠️ QR generation failed for ${number}, sent text only (${i+1}/${messages.length})`);
+                if (qrImageBuffer) {
+                  // Create media from buffer
+                  const media = new MessageMedia(
+                    'image/png', 
+                    qrImageBuffer.toString('base64'), 
+                    'qrcode.png'
+                  );
+                  
+                  // Send the image with message as caption
+                  await client.sendMessage(formattedNumber, media, { caption: message });
+                  
+                  successCount++;
+                  success = true;
+                  log(`✅ Sent QR image message to ${number} (${i+1}/${messages.length})`);
+                } else {
+                  // QR generation failed, send text only
+                  await client.sendMessage(formattedNumber, message);
+                  successCount++;
+                  success = true;
+                  log(`⚠️ QR generation failed for ${number}, sent text only (${i+1}/${messages.length})`);
+                }
+              } catch (qrError) {
+                if (attempts >= MAX_ATTEMPTS) {
+                  // If QR generation errors after all attempts, fall back to text message
+                  log(`⚠️ QR error for ${number} after ${attempts} attempts: ${qrError.message}, sending text only`);
+                  try {
+                    await client.sendMessage(formattedNumber, message);
+                    successCount++;
+                    success = true;
+                    log(`✅ Sent fallback text message to ${number} (${i+1}/${messages.length})`);
+                  } catch (textError) {
+                    failCount++;
+                    log(`❌ Failed to send text message to ${number}: ${textError.message}`);
+                  }
+                } else {
+                  // Wait before retry
+                  log(`⚠️ QR error for ${number} (attempt ${attempts}): ${qrError.message}, will retry`);
+                  await new Promise(resolve => setTimeout(resolve, 3000));
+                }
               }
-            } catch (qrError) {
-              // If QR generation errors, fall back to text message
-              log(`⚠️ QR error for ${number}: ${qrError.message}, sending text only`);
+            } else {
+              // Send simple text message (no QR)
               await client.sendMessage(formattedNumber, message);
               successCount++;
+              success = true;
+              log(`✅ Sent text message to ${number} (${i+1}/${messages.length})`);
             }
-          } else {
-            // Send simple text message (no QR)
-            await client.sendMessage(formattedNumber, message);
-            successCount++;
-            log(`✅ Sent text message to ${number} (${i+1}/${messages.length})`);
+          } catch (error) {
+            if (attempts >= MAX_ATTEMPTS) {
+              failCount++;
+              log(`❌ Failed to send message to ${number} after ${MAX_ATTEMPTS} attempts: ${error.message}`);
+            } else {
+              // Wait before retry
+              await new Promise(resolve => setTimeout(resolve, 3000));
+              log(`⚠️ Failed attempt ${attempts} for ${number}: ${error.message}, will retry`);
+            }
           }
-        } catch (error) {
-          failCount++;
-          log(`❌ Failed to send message to ${number}: ${error.message} (${i+1}/${messages.length})`);
         }
         
         // Add delay between messages - longer delay for QR messages
-        if (i < batchEnd - 1) {
+        if (i < subBatchEnd - 1) {
           await new Promise(resolve => setTimeout(resolve, MESSAGE_DELAY));
         }
       }
       
-      // Log batch completion
-      log(`✅ QR Batch ${Math.floor(batchStart/BATCH_SIZE) + 1} completed: ${successCount} success, ${failCount} fail so far`);
+      // Log sub-batch completion
+      log(`✅ QR Sub-Batch completed: ${successCount} success, ${failCount} fail so far`);
       
-      // Add delay between batches (only if there are more batches to process)
-      if (batchEnd < messages.length) {
-        log(`⏳ Waiting ${BATCH_DELAY/1000} seconds before next batch...`);
-        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
+      // Add delay between sub-batches (only if there are more sub-batches to process)
+      if (subBatchEnd < messages.length) {
+        log(`⏳ Waiting ${SUB_BATCH_DELAY/1000} seconds before next sub-batch...`);
+        await new Promise(resolve => setTimeout(resolve, SUB_BATCH_DELAY));
       }
     }
     
-    // Log final results
-    log(`✅ QR message sending completed: ${successCount} successful, ${failCount} failed`);
+    // Log final results for this batch
+    log(`✅ QR batch ${batchNumber || '?'} completed: ${successCount} successful, ${failCount} failed`);
     
   } catch (error) {
     log(`❌ Error in QR bulk messaging API: ${error.message}`);
   }
 });
-
 // Force QR code regeneration (reset and reinitialize)
 app.post('/reset', async (req, res) => {
   log('🔄 Manual reset requested...');
