@@ -303,14 +303,14 @@ async function initializeWhatsAppClient() {
 // });
 
     // Optional: Handle button replies
-    if (text === 'join now') {
-        await message.reply('Here’s your join link: https://yourdomain.com/join');
-    } else if (text === 'more info') {
-        await message.reply('Visit https://yourdomain.com/info to know more.');
-    } else if (text === 'contact admin') {
-        await message.reply('Contact us at +91XXXXXXXXXX.');
-    }
-});
+//     if (text === 'join now') {
+//         await message.reply('Here’s your join link: https://yourdomain.com/join');
+//     } else if (text === 'more info') {
+//         await message.reply('Visit https://yourdomain.com/info to know more.');
+//     } else if (text === 'contact admin') {
+//         await message.reply('Contact us at +91XXXXXXXXXX.');
+//     }
+// });
 
 
   client.on('disconnected', async (reason) => {
