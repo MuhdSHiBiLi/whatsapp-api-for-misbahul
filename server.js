@@ -292,6 +292,16 @@ async function initializeWhatsAppClient() {
         await client.sendMessage(message.from, buttons);
     }
 
+    client.on('message', message => {
+    const text = message.body.toLowerCase(); // case-insensitive match
+
+    if (text.includes('i want')) {
+        message.reply('Thanks for your interest! Please click the link to join: https://yourdomain.com/join');
+    }
+
+    // You can add more keyword replies here
+});
+
     // Optional: Handle button replies
     if (text === 'join now') {
         await message.reply('Here’s your join link: https://yourdomain.com/join');
