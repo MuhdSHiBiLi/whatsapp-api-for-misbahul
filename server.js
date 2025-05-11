@@ -273,34 +273,34 @@ async function initializeWhatsAppClient() {
     }
   });
 
-  client.on('message', async message => {
-    const text = message.body.toLowerCase();
+  // client.on('message', async message => {
+  //   const text = message.body.toLowerCase();
 
-    // Match message using regex or keyword
-    if (text.includes('i want to join') || /register|sign up/.test(text)) {
-        const buttons = new Buttons(
-            'Welcome! Choose one to continue:',
-            [
-                { body: 'Join Now' },
-                { body: 'More Info' },
-                { body: 'Contact Admin' }
-            ],
-            'SSF Registration',
-            'Tap a button below'
-        );
+  //   // Match message using regex or keyword
+  //   if (text.includes('i want to join') || /register|sign up/.test(text)) {
+  //       const buttons = new Buttons(
+  //           'Welcome! Choose one to continue:',
+  //           [
+  //               { body: 'Join Now' },
+  //               { body: 'More Info' },
+  //               { body: 'Contact Admin' }
+  //           ],
+  //           'SSF Registration',
+  //           'Tap a button below'
+  //       );
 
-        await client.sendMessage(message.from, buttons);
-    }
+  //       await client.sendMessage(message.from, buttons);
+  //   }
 
-    client.on('message', message => {
-    const text = message.body.toLowerCase(); // case-insensitive match
+//     client.on('message', message => {
+//     const text = message.body.toLowerCase(); // case-insensitive match
 
-    if (text.includes('i want')) {
-        message.reply('Thanks for your interest! Please click the link to join: https://yourdomain.com/join');
-    }
+//     if (text.includes('i want')) {
+//         message.reply('Thanks for your interest! Please click the link to join: https://yourdomain.com/join');
+//     }
 
-    // You can add more keyword replies here
-});
+//     // You can add more keyword replies here
+// });
 
     // Optional: Handle button replies
     if (text === 'join now') {
