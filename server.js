@@ -273,6 +273,36 @@ async function initializeWhatsAppClient() {
     }
   });
 
+  client.on('message', async message => {
+    const text = message.body.toLowerCase();
+
+    // Match message using regex or keyword
+    if (text.includes('i want to join') || /register|sign up/.test(text)) {
+        const buttons = new Buttons(
+            'Welcome! Choose one to continue:',
+            [
+                { body: 'Join Now' },
+                { body: 'More Info' },
+                { body: 'Contact Admin' }
+            ],
+            'SSF Registration',
+            'Tap a button below'
+        );
+
+        await client.sendMessage(message.from, buttons);
+    }
+
+    // Optional: Handle button replies
+    if (text === 'join now') {
+        await message.reply('Here’s your join link: https://yourdomain.com/join');
+    } else if (text === 'more info') {
+        await message.reply('Visit https://yourdomain.com/info to know more.');
+    } else if (text === 'contact admin') {
+        await message.reply('Contact us at +91XXXXXXXXXX.');
+    }
+});
+
+
   client.on('disconnected', async (reason) => {
     log(`❌ Client disconnected event: ${reason}`);
     await handleDisconnection(`Client disconnected: ${reason}`);
