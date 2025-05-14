@@ -137,67 +137,18 @@ async function handleDisconnection(reason) {
 }
 
 // Get profile picture and name when connected
-// async function fetchProfileInfo() {
-//   if (!client || !isLoggedIn) return;
-  
-//   try {
-//     // Get user's contact info
-//     const me = await client.getContactById(client.info.wid._serialized);
-//     loggedInName = me.name || me.pushname || 'WhatsApp User';
-//     log(`📝 User name: ${loggedInName}`);
-    
-//     // Get profile picture
-//     try {
-//       const profilePic = await client.getProfilePicUrl(client.info.wid._serialized);
-//       profilePictureUrl = profilePic || '';
-//       log(`🖼️ Profile picture ${profilePictureUrl ? 'fetched' : 'not available'}`);
-//     } catch (picError) {
-//       log(`⚠️ Could not fetch profile picture: ${picError.message}`);
-//       profilePictureUrl = '';
-//     }
-//   } catch (error) {
-//     log(`❌ Error fetching profile info: ${error.message}`);
-//     loggedInName = 'WhatsApp User';
-//     profilePictureUrl = '';
-//   }
-// }
 async function fetchProfileInfo() {
-  if (!client) {
-    log(`⚠️ No client available for fetchProfileInfo`);
-    return;
-  }
+  if (!client || !isLoggedIn) return;
   
   try {
-    // Get client info object if available
-    if (!client.info || !client.info.wid) {
-      log(`⚠️ No client.info available yet`);
-      return;
-    }
-    
-    const widSerialized = client.info.wid._serialized;
-    
-    // Get user's contact info with retry mechanism
-    let attempts = 0;
-    const maxAttempts = 3;
-    let success = false;
-    
-    while (!success && attempts < maxAttempts) {
-      attempts++;
-      try {
-        log(`📝 Attempting to get contact info (try ${attempts})`);
-        const me = await client.getContactById(widSerialized);
-        loggedInName = me.name || me.pushname || 'WhatsApp User';
-        log(`📝 User name: ${loggedInName}`);
-        success = true;
-      } catch (err) {
-        log(`⚠️ Error fetching contact on attempt ${attempts}: ${err.message}`);
-        await new Promise(r => setTimeout(r, 1000)); // Wait a second before retry
-      }
-    }
+    // Get user's contact info
+    const me = await client.getContactById(client.info.wid._serialized);
+    loggedInName = me.name || me.pushname || 'WhatsApp User';
+    log(`📝 User name: ${loggedInName}`);
     
     // Get profile picture
     try {
-      const profilePic = await client.getProfilePicUrl(widSerialized);
+      const profilePic = await client.getProfilePicUrl(client.info.wid._serialized);
       profilePictureUrl = profilePic || '';
       log(`🖼️ Profile picture ${profilePictureUrl ? 'fetched' : 'not available'}`);
     } catch (picError) {
@@ -211,45 +162,7 @@ async function fetchProfileInfo() {
   }
 }
 
-
 // Function to initialize WhatsApp client
-// async function initializeWhatsAppClient() {
-//   // Prevent multiple initialization attempts
-//   if (client || isClientDestroying) {
-//     log('⚠️ Client initialization already in progress...');
-//     return;
-//   }
-
-//   // Minimum time between attempts
-//   const now = Date.now();
-//   if (now - lastConnectionAttempt < MIN_RECONNECT_INTERVAL) {
-//     const waitTime = MIN_RECONNECT_INTERVAL - (now - lastConnectionAttempt);
-//     log(`⏳ Too many connection attempts. Waiting ${waitTime/1000} seconds...`);
-//     return;
-//   }
-//   lastConnectionAttempt = now;
-
-//   log('🔄 Initializing WhatsApp client...');
-//   connectionState = 'INITIALIZING';
-//   isLoggedIn = false;
-//   qrCodeData = '';
-//   qrAttempts = 0;
-
-//   // Create a fresh client instance with puppeteer-less mode for fly.io
-//   client = new Client({
-//     puppeteer: {
-//       headless: true,
-//       args: [
-//         '--no-sandbox', 
-//         '--disable-setuid-sandbox',
-//         '--disable-dev-shm-usage',
-//         '--disable-accelerated-2d-canvas',
-//         '--no-first-run',
-//         '--no-zygote',
-//         '--disable-gpu'
-//       ]
-//     }
-//   });
 async function initializeWhatsAppClient() {
   // Prevent multiple initialization attempts
   if (client || isClientDestroying) {
@@ -272,7 +185,7 @@ async function initializeWhatsAppClient() {
   qrCodeData = '';
   qrAttempts = 0;
 
-  // Create a fresh client instance with special flags for render.com
+  // Create a fresh client instance with puppeteer-less mode for fly.io
   client = new Client({
     puppeteer: {
       headless: true,
@@ -283,18 +196,10 @@ async function initializeWhatsAppClient() {
         '--disable-accelerated-2d-canvas',
         '--no-first-run',
         '--no-zygote',
-        '--single-process', // Add this for Render
-        '--disable-gpu',
-        '--disable-extensions'
+        '--disable-gpu'
       ]
-    },
-    qrMaxRetries: 5,  // Set maximum QR retries
-    authTimeoutMs: 120000, // Increase timeout for slower environments
-    restartOnAuthFail: true
+    }
   });
-
-  // Rest of the function remains the same...
-}
 
   // Set up event handlers
   client.on('qr', async (qr) => {
@@ -328,35 +233,12 @@ async function initializeWhatsAppClient() {
     }
   });
 
-  // client.on('authenticated', () => {
-  //   log('🔐 Authentication successful!');
-  //   connectionState = 'AUTHENTICATED';
-  //   qrCodeData = '';
-  //   qrAttempts = 0;
-  // });
-
-client.on('authenticated', async () => {
-  log('🔐 Authentication successful!');
-  connectionState = 'AUTHENTICATED';
-  
-  // Force isLoggedIn to true here, don't wait for 'ready'
-  isLoggedIn = true;
-  
-  // Try to get client info immediately after authentication
-  try {
-    if (client.info && client.info.wid) {
-      loggedInNumber = client.info.wid.user;
-      log(`📱 Connected with number: +${loggedInNumber}`);
-      await fetchProfileInfo();
-    }
-  } catch (error) {
-    log(`⚠️ Early info fetch failed: ${error.message}`);
-    // Continue anyway - will try again on 'ready'
-  }
-  
-  qrCodeData = '';
-  qrAttempts = 0;
-});
+  client.on('authenticated', () => {
+    log('🔐 Authentication successful!');
+    connectionState = 'AUTHENTICATED';
+    qrCodeData = '';
+    qrAttempts = 0;
+  });
 
   client.on('auth_failure', async (error) => {
     log(`❌ Authentication failed: ${error}`);
@@ -368,53 +250,29 @@ client.on('authenticated', async () => {
     }, 5000);
   });
 
-  // client.on('ready', async () => {
-  //   log('✅ Client is ready!');
-  //   isLoggedIn = true;
-  //   connectionState = 'CONNECTED';
-  //   reconnectionAttempts = 0;
-  //   lastActiveTimestamp = Date.now();
-  //   qrAttempts = 0;
+  client.on('ready', async () => {
+    log('✅ Client is ready!');
+    isLoggedIn = true;
+    connectionState = 'CONNECTED';
+    reconnectionAttempts = 0;
+    lastActiveTimestamp = Date.now();
+    qrAttempts = 0;
     
-  //   try {
-  //     loggedInNumber = client.info.wid.user;
-  //     log(`📱 Connected with number: +${loggedInNumber}`);
+    try {
+      loggedInNumber = client.info.wid.user;
+      log(`📱 Connected with number: +${loggedInNumber}`);
       
-  //     // Fetch profile info
-  //     await fetchProfileInfo();
+      // Fetch profile info
+      await fetchProfileInfo();
       
-  //     // Start active connection checking
-  //     if (connectionCheckTimer) clearInterval(connectionCheckTimer);
-  //     connectionCheckTimer = setInterval(checkActiveConnection, CONNECTION_CHECK_INTERVAL);
-  //   } catch (error) {
-  //     log(`⚠️ Could not get connected number: ${error.message}`);
-  //   }
-  // });
-client.on('ready', async () => {
-  log('✅ Client is ready!');
-  isLoggedIn = true;
-  connectionState = 'CONNECTED';
-  reconnectionAttempts = 0;
-  lastActiveTimestamp = Date.now();
-  qrAttempts = 0;
-  
-  try {
-    // Log the client info object to debug
-    log(`📱 Client info: ${JSON.stringify(client.info)}`);
-    
-    loggedInNumber = client.info.wid.user;
-    log(`📱 Connected with number: +${loggedInNumber}`);
-    
-    // Fetch profile info
-    await fetchProfileInfo();
-    
-    // Start active connection checking
-    if (connectionCheckTimer) clearInterval(connectionCheckTimer);
-    connectionCheckTimer = setInterval(checkActiveConnection, CONNECTION_CHECK_INTERVAL);
-  } catch (error) {
-    log(`⚠️ Could not get connected number: ${error.message}`);
-  }
-});
+      // Start active connection checking
+      if (connectionCheckTimer) clearInterval(connectionCheckTimer);
+      connectionCheckTimer = setInterval(checkActiveConnection, CONNECTION_CHECK_INTERVAL);
+    } catch (error) {
+      log(`⚠️ Could not get connected number: ${error.message}`);
+    }
+  });
+
   // client.on('message', async message => {
   //   const text = message.body.toLowerCase();
 
@@ -565,69 +423,8 @@ function startMonitoring() {
 }
 
 // Ping test route to test connection
-// app.get('/ping', async (req, res) => {
-//   if (!isLoggedIn || !client) {
-//     return res.status(200).json({
-//       success: false,
-//       status: connectionState,
-//       message: 'WhatsApp not connected'
-//     });
-//   }
-
-//   try {
-//     const state = await client.getState();
-//     lastKnownState = state;
-//     lastActiveTimestamp = Date.now();
-    
-//     return res.status(200).json({
-//       success: true,
-//       status: state,
-//       number: loggedInNumber,
-//       name: loggedInName,
-//       message: 'Connection active'
-//     });
-//   } catch (error) {
-//     log(`❌ Ping check failed: ${error.message}`);
-    
-//     return res.status(200).json({
-//       success: false,
-//       status: 'ERROR',
-//       message: `Failed to check state: ${error.message}`
-//     });
-//   }
-// });
-
-app.get('/health', async (req, res) => {
-  try {
-    const state = client ? await client.getState().catch(() => 'UNKNOWN') : 'NO_CLIENT';
-    
-    res.status(200).json({
-      success: true,
-      status: connectionState,
-      clientState: state,
-      isLoggedIn,
-      loggedInNumber: loggedInNumber || null,
-      loggedInName: loggedInName || null,
-      profilePictureUrl: profilePictureUrl || null,
-      serverTime: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(200).json({
-      success: false,
-      error: error.message,
-      status: connectionState,
-      isLoggedIn,
-      serverTime: new Date().toISOString()
-    });
-  }
-});
-
-// 7. Additional logging in ping route
 app.get('/ping', async (req, res) => {
-  log(`📡 Ping request received`);
-  
   if (!isLoggedIn || !client) {
-    log(`⚠️ Ping failed: Not logged in or no client`);
     return res.status(200).json({
       success: false,
       status: connectionState,
@@ -639,8 +436,6 @@ app.get('/ping', async (req, res) => {
     const state = await client.getState();
     lastKnownState = state;
     lastActiveTimestamp = Date.now();
-    
-    log(`📡 Ping successful: ${state}`);
     
     return res.status(200).json({
       success: true,
@@ -701,209 +496,8 @@ app.post('/toggle-qr-auto-refresh', (req, res) => {
 });
 
 // Web server routes
-// app.get('/', (req, res) => {
-//   if (isLoggedIn) {
-//     res.send(`
-//       <html>
-//         <head>
-//           <title>WhatsApp Status</title>
-//           <meta http-equiv="refresh" content="${Math.floor(PAGE_REFRESH_INTERVAL/1000)}">
-//           <style>
-//             body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; background-color: #f0f2f5; margin: 0; padding: 0; }
-//             .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; max-width: 500px; width: 100%; }
-//             .success { color: #128C7E; }
-//             .refresh { color: #777; font-size: 12px; margin-top: 20px; }
-//             .actions { margin-top: 20px; }
-//             .btn { background: #128C7E; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; margin: 0 5px; }
-//             .btn-danger { background: #e74c3c; }
-//             .btn-warning { background: #f39c12; }
-//             .profile-section { display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; }
-//             .profile-pic { width: 135px; height: 135px; border-radius: 50%; object-fit: cover; border: 3px solid #128C7E; margin-bottom: 10px; }
-//             .profile-pic-placeholder { width: 100px; height: 100px; border-radius: 50%; background-color: #128C7E; display: flex; align-items: center; justify-content: center; color: white; font-size: 40px; margin-bottom: 10px; }
-//             .user-name { font-weight: bold; font-size: 18px; margin-bottom: 5px; }
-//             .user-number { color: #666; margin-bottom: 10px; }
-//           </style>
-//         </head>
-//         <body>
-//           <div class="container">
-//             <h2 class="success">✅ WhatsApp Connected</h2>
-            
-//             <div class="profile-section">
-//               ${profilePictureUrl 
-//                 ? `<img src="${profilePictureUrl}" alt="Profile Picture" class="profile-pic" onerror="this.onerror=null;this.src='';this.classList.add('profile-pic-placeholder');this.innerHTML='+';"/>` 
-//                 : `<div class="profile-pic-placeholder">${loggedInName ? loggedInName[0].toUpperCase() : '+'}</div>`
-//               }
-//               <div class="user-name">${loggedInName || 'WhatsApp User'}</div>
-//               <div class="user-number">+${loggedInNumber}</div>
-//             </div>
-            
-//             <p>WhatsApp session is active and being monitored.</p>
-//             <p>Current status: ${connectionState}</p>
-//             <p>Last check: ${new Date().toLocaleTimeString()}</p>
-            
-//             <div class="actions">
-//               <button class="btn" onclick="pingConnection()">Check Connection</button>
-//               <button class="btn btn-warning" onclick="logoutConnection()">Logout Device</button>
-//               <button class="btn btn-danger" onclick="resetConnection()">Reset Connection</button>
-//             </div>
-//             <p class="refresh">Page refreshes automatically every ${Math.floor(PAGE_REFRESH_INTERVAL/1000)} seconds.</p>
-//             <div id="ping-result" style="margin-top: 15px;"></div>
-//           </div>
-          
-//           <script>
-//             function pingConnection() {
-//               document.getElementById('ping-result').innerHTML = 'Checking connection...';
-//               fetch('/ping')
-//                 .then(response => response.json())
-//                 .then(data => {
-//                   document.getElementById('ping-result').innerHTML = 
-//                     data.success ? 
-//                     '<span style="color:#128C7E">✅ Connection active: ' + data.status + '</span>' : 
-//                     '<span style="color:#e74c3c">❌ Connection issue: ' + data.message + '</span>';
-//                 })
-//                 .catch(err => {
-//                   document.getElementById('ping-result').innerHTML = 
-//                     '<span style="color:#e74c3c">❌ Error checking connection</span>';
-//                 });
-//             }
-            
-//             function resetConnection() {
-//               if (confirm('Are you sure you want to reset the WhatsApp connection?')) {
-//                 fetch('/reset', { method: 'POST' })
-//                   .then(response => response.text())
-//                   .then(data => {
-//                     alert(data);
-//                     setTimeout(() => location.reload(), 1000);
-//                   })
-//                   .catch(err => {
-//                     alert('Error resetting connection');
-//                   });
-//               }
-//             }
-            
-//             function logoutConnection() {
-//               if (confirm('Are you sure you want to logout this device from WhatsApp?')) {
-//                 fetch('/logout', { method: 'POST' })
-//                   .then(response => response.text())
-//                   .then(data => {
-//                     alert(data);
-//                     setTimeout(() => location.reload(), 1000);
-//                   })
-//                   .catch(err => {
-//                     alert('Error logging out');
-//                   });
-//               }
-//             }
-//           </script>
-//         </body>
-//       </html>
-//     `);
-//   } else if (qrCodeData) {
-//     // QR code display with manual refresh and auto-refresh toggle
-//     res.send(`
-//       <html>
-//         <head>
-//           <title>Scan QR Code</title>
-//           <meta http-equiv="refresh" content="${Math.floor(PAGE_REFRESH_INTERVAL/1000)}">
-//           <style>
-//             body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; background-color: #f0f2f5; margin: 0; padding: 0; }
-//             .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; max-width: 500px; width: 100%; }
-//             img { max-width: 300px; border: 1px solid #ddd; padding: 10px; margin: 20px 0; }
-//             .refresh { color: #777; font-size: 12px; margin-top: 20px; }
-//             .qr-timestamp { font-size: 12px; color: #666; margin-top: 5px; }
-//             .qr-container { display: flex; justify-content: center; align-items: center; }
-//             .btn { background: #128C7E; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; margin: 10px 5px; }
-//             .btn-secondary { background: #888; }
-//             .toggle-btn { background: ${qrAutoRefresh ? '#f39c12' : '#128C7E'}; }
-//             .actions { margin-top: 15px; }
-//           </style>
-//         </head>
-//         <body>
-//           <div class="container">
-//             <h2>Scan QR Code with WhatsApp</h2>
-//             <p>Open WhatsApp on your phone, go to Settings > Linked Devices > Link a Device</p>
-//             <div class="qr-container">
-//               <img src="${qrCodeData}" alt="WhatsApp QR Code" />
-//             </div>
-//             <p class="qr-timestamp">QR Code generated: ${new Date(qrGenerationTime).toLocaleTimeString()}</p>
-//             <p>Current status: ${connectionState}</p>
-            
-//             <div class="actions">
-//               <button class="btn" onclick="generateNewQR()">Generate New QR Code</button>
-//               <button class="btn toggle-btn" onclick="toggleAutoRefresh()">${qrAutoRefresh ? 'Disable' : 'Enable'} Auto-Refresh</button>
-//             </div>
-            
-//             <p class="refresh">Page refreshes automatically every ${Math.floor(PAGE_REFRESH_INTERVAL/1000)} seconds.</p>
-//           </div>
-          
-//           <script>
-//             function generateNewQR() {
-//               fetch('/generate-qr', { method: 'POST' })
-//                 .then(response => response.json())
-//                 .then(data => {
-//                   if (data.success) {
-//                     alert('Generating new QR code...');
-//                     setTimeout(() => location.reload(), 3000);
-//                   } else {
-//                     alert(data.message);
-//                   }
-//                 })
-//                 .catch(err => {
-//                   alert('Error generating QR code');
-//                 });
-//             }
-            
-//             function toggleAutoRefresh() {
-//               fetch('/toggle-qr-auto-refresh', { method: 'POST' })
-//                 .then(response => response.json())
-//                 .then(data => {
-//                   alert(data.message);
-//                   location.reload();
-//                 })
-//                 .catch(err => {
-//                   alert('Error toggling auto-refresh');
-//                 });
-//             }
-//           </script>
-//         </body>
-//       </html>
-//     `);
-//   } else {
-//     // Loading state with improved UI
-//     res.send(`
-//       <html>
-//         <head>
-//           <meta http-equiv="refresh" content="${Math.floor(PAGE_REFRESH_INTERVAL/1000)}">
-//           <style>
-//             body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; background-color: #f0f2f5; margin: 0; padding: 0; }
-//             .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; max-width: 500px; width: 100%; }
-//             .waiting { color: #E37400; }
-//             .refresh { color: #777; font-size: 12px; margin-top: 20px; }
-//             .loader { border: 5px solid #f3f3f3; border-radius: 50%; border-top: 5px solid #128C7E; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 20px auto; }
-//             @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-//           </style>
-//         </head>
-//         <body>
-//           <div class="container">
-//             <h2 class="waiting">⏳ Preparing WhatsApp Connection...</h2>
-//             <div class="loader"></div>
-//             <p>Current status: ${connectionState}</p>
-//             <p class="refresh">Page refreshes automatically every ${Math.floor(PAGE_REFRESH_INTERVAL/1000)} seconds.</p>
-//           </div>
-//         </body>
-//       </html>
-//     `);
-//   }
-// });
 app.get('/', (req, res) => {
-  // Explicitly check connection state for more reliable UI rendering
-  const displayState = client && (connectionState === 'CONNECTED' || 
-                                 connectionState === 'AUTHENTICATED' && isLoggedIn) ? 'connected' : 
-                      qrCodeData ? 'qr' : 'initializing';
-  
-  log(`🌐 Rendering home page with display state: ${displayState}, connection state: ${connectionState}, isLoggedIn: ${isLoggedIn}`);
-  
-  if (displayState === 'connected') {
+  if (isLoggedIn) {
     res.send(`
       <html>
         <head>
@@ -923,7 +517,6 @@ app.get('/', (req, res) => {
             .profile-pic-placeholder { width: 100px; height: 100px; border-radius: 50%; background-color: #128C7E; display: flex; align-items: center; justify-content: center; color: white; font-size: 40px; margin-bottom: 10px; }
             .user-name { font-weight: bold; font-size: 18px; margin-bottom: 5px; }
             .user-number { color: #666; margin-bottom: 10px; }
-            .debug-info { font-size: 11px; color: #999; margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; }
           </style>
         </head>
         <body>
@@ -936,7 +529,7 @@ app.get('/', (req, res) => {
                 : `<div class="profile-pic-placeholder">${loggedInName ? loggedInName[0].toUpperCase() : '+'}</div>`
               }
               <div class="user-name">${loggedInName || 'WhatsApp User'}</div>
-              <div class="user-number">+${loggedInNumber || 'Connected'}</div>
+              <div class="user-number">+${loggedInNumber}</div>
             </div>
             
             <p>WhatsApp session is active and being monitored.</p>
@@ -950,10 +543,6 @@ app.get('/', (req, res) => {
             </div>
             <p class="refresh">Page refreshes automatically every ${Math.floor(PAGE_REFRESH_INTERVAL/1000)} seconds.</p>
             <div id="ping-result" style="margin-top: 15px;"></div>
-            
-            <div class="debug-info">
-              Connection: ${connectionState} | Logged in: ${isLoggedIn} | Number: ${loggedInNumber || 'Unknown'}
-            </div>
           </div>
           
           <script>
@@ -1004,7 +593,7 @@ app.get('/', (req, res) => {
         </body>
       </html>
     `);
-  } else if (displayState === 'qr') {
+  } else if (qrCodeData) {
     // QR code display with manual refresh and auto-refresh toggle
     res.send(`
       <html>
@@ -1022,7 +611,6 @@ app.get('/', (req, res) => {
             .btn-secondary { background: #888; }
             .toggle-btn { background: ${qrAutoRefresh ? '#f39c12' : '#128C7E'}; }
             .actions { margin-top: 15px; }
-            .debug-info { font-size: 11px; color: #999; margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; }
           </style>
         </head>
         <body>
@@ -1041,10 +629,6 @@ app.get('/', (req, res) => {
             </div>
             
             <p class="refresh">Page refreshes automatically every ${Math.floor(PAGE_REFRESH_INTERVAL/1000)} seconds.</p>
-            
-            <div class="debug-info">
-              Connection: ${connectionState} | Logged in: ${isLoggedIn} | QR Attempts: ${qrAttempts}
-            </div>
           </div>
           
           <script>
@@ -1080,7 +664,7 @@ app.get('/', (req, res) => {
       </html>
     `);
   } else {
-    // Loading state with improved UI and debug info
+    // Loading state with improved UI
     res.send(`
       <html>
         <head>
@@ -1092,9 +676,6 @@ app.get('/', (req, res) => {
             .refresh { color: #777; font-size: 12px; margin-top: 20px; }
             .loader { border: 5px solid #f3f3f3; border-radius: 50%; border-top: 5px solid #128C7E; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 20px auto; }
             @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-            .actions { margin-top: 20px; }
-            .btn { background: #128C7E; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; margin: 0 5px; }
-            .debug-info { font-size: 11px; color: #999; margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; }
           </style>
         </head>
         <body>
@@ -1103,54 +684,12 @@ app.get('/', (req, res) => {
             <div class="loader"></div>
             <p>Current status: ${connectionState}</p>
             <p class="refresh">Page refreshes automatically every ${Math.floor(PAGE_REFRESH_INTERVAL/1000)} seconds.</p>
-            
-            <div class="actions">
-              <button class="btn" onclick="generateNewQR()">Generate QR Code</button>
-              <button class="btn" onclick="resetConnection()">Reset Connection</button>
-            </div>
-            
-            <div class="debug-info">
-              Connection: ${connectionState} | Logged in: ${isLoggedIn} | Client exists: ${client ? 'Yes' : 'No'}
-            </div>
           </div>
-          
-          <script>
-            function generateNewQR() {
-              fetch('/generate-qr', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                  if (data.success) {
-                    alert('Generating new QR code...');
-                    setTimeout(() => location.reload(), 3000);
-                  } else {
-                    alert(data.message);
-                  }
-                })
-                .catch(err => {
-                  alert('Error generating QR code');
-                });
-            }
-            
-            function resetConnection() {
-              if (confirm('Are you sure you want to reset the WhatsApp connection?')) {
-                fetch('/reset', { method: 'POST' })
-                  .then(response => response.text())
-                  .then(data => {
-                    alert(data);
-                    setTimeout(() => location.reload(), 1000);
-                  })
-                  .catch(err => {
-                    alert('Error resetting connection');
-                  });
-              }
-            }
-          </script>
         </body>
       </html>
     `);
   }
 });
-
 
 // Bulk messaging API endpoint
 // app.post('/api/send-bulk', async (req, res) => {
