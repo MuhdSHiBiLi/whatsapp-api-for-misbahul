@@ -1338,93 +1338,212 @@ app.post('/api/send-messages', async (req, res) => {
 //   }
 // });
 // Endpoint for sending bulk messages optimized for speed
+// app.post('/api/send-bulk', async (req, res) => {
+//   // Check if WhatsApp is connected
+//   if (!isLoggedIn || !client) {
+//     return res.status(403).json({
+//       success: false, 
+//       message: 'WhatsApp not connected. Please scan QR code first.'
+//     });
+//   }
+
+//   try {
+//     // Get the messages array from request body
+//     const { messages, batchNumber, totalBatches } = req.body;
+    
+//     if (!messages || !Array.isArray(messages) || messages.length === 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Invalid request. Please provide an array of messages.'
+//       });
+//     }
+
+//     // Immediately respond to prevent timeout
+//     res.status(202).json({
+//       success: true,
+//       message: `Processing batch ${batchNumber || 1} of ${totalBatches || 1} with ${messages.length} messages`,
+//       queued: messages.length
+//     });
+
+//     // Implementation of speed-optimized batching mechanism
+//     const MESSAGE_BATCH_SIZE = 10; // Process 10 messages at a time (increased from 5)
+//     const BATCH_DELAY = 2000; // 2 seconds between batches (reduced from 8)
+//     const MESSAGE_DELAY = 1000; // 1 second between messages (reduced from 3)
+//     const MAX_RETRIES = 1; // Only retry once to maintain speed
+    
+//     // Track success and failure
+//     let successCount = 0;
+//     let failCount = 0;
+    
+//     // Helper function to send a single message with minimal retry
+//     async function sendMessageWithRetry(number, message, retryCount = 0) {
+//       try {
+//         // Format phone number
+//         const formattedNumber = number.startsWith('+') 
+//           ? number.substring(1) + '@c.us' 
+//           : number + '@c.us';
+        
+//         // Send message
+//         await client.sendMessage(formattedNumber, message);
+//         successCount++;
+//         log(`✅ Sent message to ${number}`);
+//         return true;
+//       } catch (error) {
+//         if (retryCount < MAX_RETRIES) {
+//           // Quick retry once
+//           await new Promise(resolve => setTimeout(resolve, 500));
+//           return sendMessageWithRetry(number, message, retryCount + 1);
+//         } else {
+//           failCount++;
+//           log(`❌ Failed to send message to ${number}: ${error.message}`);
+//           return false;
+//         }
+//       }
+//     }
+    
+//     // Process messages in optimal-sized batches
+//     for (let batchStart = 0; batchStart < messages.length; batchStart += MESSAGE_BATCH_SIZE) {
+//       const batchEnd = Math.min(batchStart + MESSAGE_BATCH_SIZE, messages.length);
+      
+//       // Process current batch
+//       for (let i = batchStart; i < batchEnd; i++) {
+//         const { number, message } = messages[i];
+        
+//         // Send the message with minimal retry
+//         await sendMessageWithRetry(number, message);
+        
+//         // Add minimal delay between messages
+//         if (i < batchEnd - 1) {
+//           await new Promise(resolve => setTimeout(resolve, MESSAGE_DELAY));
+//         }
+//       }
+      
+//       // Add minimal delay between batches (only if there are more to process)
+//       if (batchEnd < messages.length) {
+//         await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
+//       }
+//     }
+    
+//     // Log final results
+//     log(`✅ Message sending completed: ${successCount} successful, ${failCount} failed`);
+    
+//   } catch (error) {
+//     log(`❌ Error in bulk messaging API: ${error.message}`);
+//   }
+// });
+// BACKEND API ENDPOINT
 app.post('/api/send-bulk', async (req, res) => {
   // Check if WhatsApp is connected
   if (!isLoggedIn || !client) {
-    return res.status(403).json({
-      success: false, 
-      message: 'WhatsApp not connected. Please scan QR code first.'
-    });
+    return res.status(403).json({ success: false, message: 'WhatsApp not connected. Please scan QR code first.' });
   }
-
+  
   try {
     // Get the messages array from request body
     const { messages, batchNumber, totalBatches } = req.body;
     
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid request. Please provide an array of messages.'
-      });
+      return res.status(400).json({ success: false, message: 'Invalid request. Please provide an array of messages.' });
     }
-
-    // Immediately respond to prevent timeout
-    res.status(202).json({
-      success: true,
-      message: `Processing batch ${batchNumber || 1} of ${totalBatches || 1} with ${messages.length} messages`,
-      queued: messages.length
-    });
-
-    // Implementation of speed-optimized batching mechanism
-    const MESSAGE_BATCH_SIZE = 10; // Process 10 messages at a time (increased from 5)
-    const BATCH_DELAY = 2000; // 2 seconds between batches (reduced from 8)
-    const MESSAGE_DELAY = 1000; // 1 second between messages (reduced from 3)
-    const MAX_RETRIES = 1; // Only retry once to maintain speed
     
-    // Track success and failure
-    let successCount = 0;
-    let failCount = 0;
+    // Send a quick acknowledgment response to prevent timeout
+    // This is important for Render's limitations
+    res.status(202).json({ 
+      success: true, 
+      message: `Processing batch ${batchNumber || 1} of ${totalBatches || 1} with ${messages.length} messages`,
+      queued: messages.length 
+    });
+    
+    // Create a results array to track delivery status
+    const results = [];
+    
+    // Implementation with better speed but still reliable
+    const MESSAGE_BATCH_SIZE = 8;  // Process 8 messages at a time (balanced)
+    const BATCH_DELAY = 1500;      // 1.5 seconds between batches
+    const MESSAGE_DELAY = 800;     // 0.8 seconds between messages
+    const MAX_RETRIES = 1;         // Only retry once for speed
     
     // Helper function to send a single message with minimal retry
     async function sendMessageWithRetry(number, message, retryCount = 0) {
       try {
         // Format phone number
-        const formattedNumber = number.startsWith('+') 
-          ? number.substring(1) + '@c.us' 
-          : number + '@c.us';
+        const formattedNumber = number.startsWith('+') ? number.substring(1) + '@c.us' : number + '@c.us';
         
-        // Send message
-        await client.sendMessage(formattedNumber, message);
-        successCount++;
+        // Send message and verify success
+        const response = await client.sendMessage(formattedNumber, message);
+        
+        // Basic verification
+        if (!response) {
+          throw new Error('No response from WhatsApp client');
+        }
+        
         log(`✅ Sent message to ${number}`);
+        
+        results.push({
+          number,
+          status: 'success'
+        });
+        
         return true;
       } catch (error) {
+        log(`⚠️ Error sending to ${number}: ${error.message}`);
+        
         if (retryCount < MAX_RETRIES) {
-          // Quick retry once
-          await new Promise(resolve => setTimeout(resolve, 500));
+          // Quick retry with minimal delay
+          await new Promise(resolve => setTimeout(resolve, 700));
           return sendMessageWithRetry(number, message, retryCount + 1);
         } else {
-          failCount++;
-          log(`❌ Failed to send message to ${number}: ${error.message}`);
+          log(`❌ Failed to send message to ${number}`);
+          
+          results.push({
+            number,
+            status: 'failed'
+          });
+          
           return false;
         }
       }
     }
     
-    // Process messages in optimal-sized batches
+    // Process messages in optimized batches
+    let successCount = 0;
+    let failCount = 0;
+    
+    // Use Promise.all for parallel processing within each batch
     for (let batchStart = 0; batchStart < messages.length; batchStart += MESSAGE_BATCH_SIZE) {
       const batchEnd = Math.min(batchStart + MESSAGE_BATCH_SIZE, messages.length);
+      const batchPromises = [];
       
-      // Process current batch
+      // Create promises for current batch
       for (let i = batchStart; i < batchEnd; i++) {
         const { number, message } = messages[i];
         
-        // Send the message with minimal retry
-        await sendMessageWithRetry(number, message);
+        // Add slight staggering for network efficiency
+        const staggerDelay = (i - batchStart) * MESSAGE_DELAY;
         
-        // Add minimal delay between messages
-        if (i < batchEnd - 1) {
-          await new Promise(resolve => setTimeout(resolve, MESSAGE_DELAY));
-        }
+        batchPromises.push(
+          new Promise(async (resolve) => {
+            // Stagger the start of each message
+            await new Promise(r => setTimeout(r, staggerDelay));
+            const success = await sendMessageWithRetry(number, message);
+            if (success) successCount++;
+            else failCount++;
+            resolve();
+          })
+        );
       }
       
-      // Add minimal delay between batches (only if there are more to process)
+      // Wait for all messages in batch to complete
+      await Promise.all(batchPromises);
+      
+      log(`📦 Batch progress: ${Math.min(batchEnd, messages.length)}/${messages.length} processed`);
+      
+      // Add delay between batches (only if there are more to process)
       if (batchEnd < messages.length) {
         await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
       }
     }
     
-    // Log final results
     log(`✅ Message sending completed: ${successCount} successful, ${failCount} failed`);
     
   } catch (error) {
