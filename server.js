@@ -1254,6 +1254,90 @@ app.post('/api/send-messages', async (req, res) => {
 });
 
 // New endpoint specifically for handling bulk messages with batching
+// app.post('/api/send-bulk', async (req, res) => {
+//   // Check if WhatsApp is connected
+//   if (!isLoggedIn || !client) {
+//     return res.status(403).json({
+//       success: false, 
+//       message: 'WhatsApp not connected. Please scan QR code first.'
+//     });
+//   }
+
+//   try {
+//     // Get the messages array from request body
+//     const { messages, total } = req.body;
+    
+//     if (!messages || !Array.isArray(messages) || messages.length === 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Invalid request. Please provide an array of messages.'
+//       });
+//     }
+
+//     // Immediately respond to prevent timeout
+//     res.status(202).json({
+//       success: true,
+//       message: `Processing ${messages.length} messages in batches`,
+//       queued: messages.length
+//     });
+
+//     // Implementation of improved batching mechanism
+//     const BATCH_SIZE = 20; // Send 20 messages per batch
+//     const BATCH_DELAY = 5000; // 5 seconds between batches
+//     const MESSAGE_DELAY = 1500; // 1.5 seconds between messages
+    
+//     // Track success and failure
+//     let successCount = 0;
+//     let failCount = 0;
+    
+//     // Process messages in batches
+//     for (let batchStart = 0; batchStart < messages.length; batchStart += BATCH_SIZE) {
+//       const batchEnd = Math.min(batchStart + BATCH_SIZE, messages.length);
+//       log(`📦 Processing batch ${Math.floor(batchStart/BATCH_SIZE) + 1}: messages ${batchStart+1} to ${batchEnd}`);
+      
+//       // Process current batch
+//       for (let i = batchStart; i < batchEnd; i++) {
+//         const { number, message } = messages[i];
+        
+//         // Format phone number
+//         const formattedNumber = number.startsWith('+') 
+//           ? number.substring(1) + '@c.us' 
+//           : number + '@c.us';
+        
+//         try {
+//           // Send text message
+//           await client.sendMessage(formattedNumber, message);
+//           successCount++;
+//           log(`✅ Sent message to ${number} (${i+1}/${messages.length})`);
+//         } catch (error) {
+//           failCount++;
+//           log(`❌ Failed to send message to ${number}: ${error.message} (${i+1}/${messages.length})`);
+//         }
+        
+//         // Add delay between messages - longer and more consistent delay
+//         if (i < batchEnd - 1) {
+//           await new Promise(resolve => setTimeout(resolve, MESSAGE_DELAY));
+//         }
+//       }
+      
+//       // Log batch completion
+//       log(`✅ Batch ${Math.floor(batchStart/BATCH_SIZE) + 1} completed: ${successCount} success, ${failCount} fail so far`);
+      
+//       // Add delay between batches (only if there are more batches to process)
+//       if (batchEnd < messages.length) {
+//         log(`⏳ Waiting ${BATCH_DELAY/1000} seconds before next batch...`);
+//         await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
+//       }
+//     }
+    
+//     // Log final results
+//     log(`✅ Message sending completed: ${successCount} successful, ${failCount} failed`);
+    
+//   } catch (error) {
+//     log(`❌ Error in bulk messaging API: ${error.message}`);
+//   }
+// });
+// Endpoint for sending bulk messages optimized for speed
 app.post('/api/send-bulk', async (req, res) => {
   // Check if WhatsApp is connected
   if (!isLoggedIn || !client) {
@@ -1265,7 +1349,7 @@ app.post('/api/send-bulk', async (req, res) => {
 
   try {
     // Get the messages array from request body
-    const { messages, total } = req.body;
+    const { messages, batchNumber, totalBatches } = req.body;
     
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({
@@ -1277,55 +1361,65 @@ app.post('/api/send-bulk', async (req, res) => {
     // Immediately respond to prevent timeout
     res.status(202).json({
       success: true,
-      message: `Processing ${messages.length} messages in batches`,
+      message: `Processing batch ${batchNumber || 1} of ${totalBatches || 1} with ${messages.length} messages`,
       queued: messages.length
     });
 
-    // Implementation of improved batching mechanism
-    const BATCH_SIZE = 20; // Send 20 messages per batch
-    const BATCH_DELAY = 5000; // 5 seconds between batches
-    const MESSAGE_DELAY = 1500; // 1.5 seconds between messages
+    // Implementation of speed-optimized batching mechanism
+    const MESSAGE_BATCH_SIZE = 10; // Process 10 messages at a time (increased from 5)
+    const BATCH_DELAY = 2000; // 2 seconds between batches (reduced from 8)
+    const MESSAGE_DELAY = 1000; // 1 second between messages (reduced from 3)
+    const MAX_RETRIES = 1; // Only retry once to maintain speed
     
     // Track success and failure
     let successCount = 0;
     let failCount = 0;
     
-    // Process messages in batches
-    for (let batchStart = 0; batchStart < messages.length; batchStart += BATCH_SIZE) {
-      const batchEnd = Math.min(batchStart + BATCH_SIZE, messages.length);
-      log(`📦 Processing batch ${Math.floor(batchStart/BATCH_SIZE) + 1}: messages ${batchStart+1} to ${batchEnd}`);
-      
-      // Process current batch
-      for (let i = batchStart; i < batchEnd; i++) {
-        const { number, message } = messages[i];
-        
+    // Helper function to send a single message with minimal retry
+    async function sendMessageWithRetry(number, message, retryCount = 0) {
+      try {
         // Format phone number
         const formattedNumber = number.startsWith('+') 
           ? number.substring(1) + '@c.us' 
           : number + '@c.us';
         
-        try {
-          // Send text message
-          await client.sendMessage(formattedNumber, message);
-          successCount++;
-          log(`✅ Sent message to ${number} (${i+1}/${messages.length})`);
-        } catch (error) {
+        // Send message
+        await client.sendMessage(formattedNumber, message);
+        successCount++;
+        log(`✅ Sent message to ${number}`);
+        return true;
+      } catch (error) {
+        if (retryCount < MAX_RETRIES) {
+          // Quick retry once
+          await new Promise(resolve => setTimeout(resolve, 500));
+          return sendMessageWithRetry(number, message, retryCount + 1);
+        } else {
           failCount++;
-          log(`❌ Failed to send message to ${number}: ${error.message} (${i+1}/${messages.length})`);
+          log(`❌ Failed to send message to ${number}: ${error.message}`);
+          return false;
         }
+      }
+    }
+    
+    // Process messages in optimal-sized batches
+    for (let batchStart = 0; batchStart < messages.length; batchStart += MESSAGE_BATCH_SIZE) {
+      const batchEnd = Math.min(batchStart + MESSAGE_BATCH_SIZE, messages.length);
+      
+      // Process current batch
+      for (let i = batchStart; i < batchEnd; i++) {
+        const { number, message } = messages[i];
         
-        // Add delay between messages - longer and more consistent delay
+        // Send the message with minimal retry
+        await sendMessageWithRetry(number, message);
+        
+        // Add minimal delay between messages
         if (i < batchEnd - 1) {
           await new Promise(resolve => setTimeout(resolve, MESSAGE_DELAY));
         }
       }
       
-      // Log batch completion
-      log(`✅ Batch ${Math.floor(batchStart/BATCH_SIZE) + 1} completed: ${successCount} success, ${failCount} fail so far`);
-      
-      // Add delay between batches (only if there are more batches to process)
+      // Add minimal delay between batches (only if there are more to process)
       if (batchEnd < messages.length) {
-        log(`⏳ Waiting ${BATCH_DELAY/1000} seconds before next batch...`);
         await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
       }
     }
@@ -1337,7 +1431,6 @@ app.post('/api/send-bulk', async (req, res) => {
     log(`❌ Error in bulk messaging API: ${error.message}`);
   }
 });
-
 // New endpoint for bulk messages with QR codes
 // app.post('/api/send-bulk-qr', async (req, res) => {
 //   // Check if WhatsApp is connected
